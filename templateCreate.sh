@@ -38,7 +38,5 @@ $CLOUDCMD compute instance-templates create lb-backend-template \
 
 #EXECFUNC=createStr
 EXECFUNC=createHereDoc
-for name in "$PREFIX"{1..3}; do
-	echo Doing for $name
-	$EXECFUNC $name
-done
+echo Doing for 
+$EXECFUNC

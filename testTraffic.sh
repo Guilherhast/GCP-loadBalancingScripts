@@ -5,7 +5,7 @@ echo $1
 if [[ -n $1 ]]; then IP=$1; fi
 if [[ -z $IP ]]; then
 	echo "No IP"
-	exit; 
+	exit
 fi
 
 

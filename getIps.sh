@@ -10,15 +10,15 @@ function getFromIp(){
 	INSTANCE=$1
 
 	NATIP=$( $CLOUDCMD compute instances describe $INSTANCE \
-		--format='get(networkInterfaces[0].accessConfigs[0].natIP)' )
+		--format='get(networkInterfaces[0].accessConfigs[0].natIP)' --zone=$ZONE )
 
-	EXTIP=$( $CLOUDCMD compute instances describe instance-name \
-		--format='get(networkInterfaces[0].networkIP)' )
+	EXTIP=$( $CLOUDCMD compute instances describe $INSTANCE \
+		--format='get(networkInterfaces[0].networkIP)' --zone=$ZONE )
 
 	echo "Nat"
-	$URLCMD http://$NATIP ; echo
+	$URLCMD -m5 http://$NATIP ; echo
 	echo "EXTIP"
-	$URLCMD http://$EXTIP ; echo
+	$URLCMD -m5 http://$EXTIP ; echo
 }
 
 EXECFUNC=getFromIp

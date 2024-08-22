@@ -21,7 +21,7 @@ $CLOUDCMD compute target-pools create www-pool \
 
 # Add instances to list
 $CLOUDCMD compute target-pools add-instances www-pool \
-	--instances $LIST
+	--instances $LIST --zone=$ZONE
 
 # Add forwarding rule
 $CLOUDCMD compute forwarding-rules create www-rule \

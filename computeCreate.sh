@@ -35,10 +35,10 @@ function createHereDoc(){
 apt-get update
 apt-get install apache2 -y
 service apache2 restart
-echo -e " <h3>Web Server: $SERVERNAME\n</h3>" | tee $WWWFILE
+echo -e "<h3>Web Server: $SERVERNAME\n</h3>" | tee $WWWFILE
 __EOF__
 
-	$CLOUDCMD compute instances create $INSTANCENAME \
+	$CLOUDCMD compute instances create $SERVERNAME \
 		--zone=$ZONE \
 		--tags=network-lb-tag \
 		--machine-type=e2-small  \
@@ -50,6 +50,7 @@ __EOF__
 
 #EXECFUNC=createStr
 EXECFUNC=createHereDoc
+gcloud config set project $PROJECT
 for name in "$PREFIX"{1..3}; do
 	echo Doing for $name
 	$EXECFUNC $name
