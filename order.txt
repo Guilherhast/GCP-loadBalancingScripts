@@ -1,0 +1,12 @@
+. ./varsRc.sh
+sh ./chGcloud.sh # Change echo to gcloud
+sh ./setRegZone.sh # Set gcloud compute region
+sh ./computeCreate.sh # Create compute instances
+sh ./firewallCreate.sh # Create firewall rules
+sh ./getIps.sh # Check if the server is up
+sh ./networkStaticIpCreate.sh # Create static ip
+sh ./forwardTrafic.sh # List forwarding rule
+sh ./templateCreate.sh # List forwarding rule
+sh ./instanceGroupeCreate.sh # List forwarding rule
+sh ./testTraffic.sh # List forwarding rule
+
