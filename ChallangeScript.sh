@@ -11,39 +11,44 @@ ZONE=us-central1-c
 PROJECT=123
 
 # Instances
-INSTANCENAME=labInstance
-TEMPLATENAME=labTemplate
-MANAGEDGROUPNAME=labManagedGroup
+INSTANCENAME=lab-instance
+TEMPLATENAME=lab-template
+MANAGEDGROUPNAME=lab-managed-group
 
 # Firewall
-FIREWALLRULENAME=labFirewall
-FIREWALLTAG=labNetworkTag
-FIREWALLHEALTHCHECKNAME=labHealthCheckFirewall
-FIREWALLHEALTHCHECKTAG=labHealthCheckTag
+FIREWALLRULENAME=lab-firewall-rule
+FIREWALLTAG=lab-network-tag
+FIREWALLHEALTHCHECKNAME=lab-health-check-firewall-rule
+FIREWALLHEALTHCHECKTAG=lab-allow-health-check-tag
 
 # Address
-ADDRESSNAME=netAddress
+ADDRESSNAME=net-address
 
-HEALTHCHECKNAME=netHealthCheck
-BACKENDSERVNAME=netBackEnd
+HEALTHCHECKNAME=net-health-check
+BACKENDSERVNAME=net-back-end
 
 # Proxy
-URLMAPNAME=labUrlMap
-PROXYNAME=labProxy
-FORWARDRULENAME=labForwardRule
+URLMAPNAME=lab-url-map
+PROXYNAME=lab-proxy
+FORWARDRULENAME=lab-forward-rule
 
 # CONSTANTS
 SERVERFILE='/var/www/html/index.nginx-debian.html'
 
+function setProject(){
+	$CLOUDCMD config set project $PROJECT
+	$CLOUDCMD config set compute/region $REGION
+	$CLOUDCMD config set compute/zone $ZONE
+}
 
 function createInstance(){
 	$CLOUDCMD compute instances create "$INSTANCENAME" \
-		--zone=$ZONE \
-		--tags=network-lb-tag \
-		--machine-type=e2-small  \
+		--tags=$FIREWALLTAG \
+		--machine-type=e2-micro  \
 		--image-family=debian-11  \
 		--image-project=debian-cloud \
 		--network=default
+		#--zone=$ZONE \
 		#--metadata=startup-script="$STARTUPINS"
 }
 
@@ -57,38 +62,40 @@ sed -i -- 's/nginx/Google Cloud Platform - '"\$HOSTNAME"'/' '$SERVERFILE'
 __EOF__
 
 $CLOUDCMD compute instance-templates create $TEMPLATENAME \
-	--global \
 	--network=default \
 	--subnet=default \
-	--tags=allow-health-check \
+	--tags=$FIREWALLHEALTHCHECKTAG \
 	--machine-type=e2-medium \
 	--image-family=debian-11 \
 	--image-project=debian-cloud \
 	--metadata=startup-script="$STARTUPTEMPLATE"
+	#--tags=$FIREWALLTAG,$FIREWALLHEALTHCHECKTAG \
 	#--region=$REGION \
-
+	#--global \
 
 }
 
 function createManagedGroup(){
 	$CLOUDCMD compute instance-groups managed  \
 		create $MANAGEDGROUPNAME \
-		-backend-group --template=$TEMPLATENAME  \
-		--size=2 --zone=$ZONE
-	}
+		--template=$TEMPLATENAME  \
+		--size=2
+		#--zone=$ZONE \
+
+}
 
 
 function createFirewall(){
 $CLOUDCMD compute firewall-rules create $FIREWALLRULENAME \
-	--target-tags $FIREWALLTAG --allow tcp:80 --global
+	--target-tags $FIREWALLTAG --allow tcp:80
 
 $CLOUDCMD compute firewall-rules create $FIREWALLHEALTHCHECKNAME \
 	--network=default \
 	--action=allow \
 	--direction=ingress \
-	--source-ranges=130.211.0.0/22,35.191.0.0/16 \
 	--target-tags=$FIREWALLHEALTHCHECKTAG \
-	--rules=tcp:80 --global
+	--rules=tcp:80
+	#--source-ranges=130.211.0.0/22,35.191.0.0/16 \
 
 }
 
@@ -99,8 +106,7 @@ $CLOUDCMD compute addresses create $ADDRESSNAME \
 }
 
 function createHealthCheck(){
-$CLOUDCMD compute health-checks create http \
-	$HEALTHCHECKNAME --port 80
+$CLOUDCMD compute health-checks create http $HEALTHCHECKNAME
 
 }
 
@@ -114,46 +120,52 @@ $CLOUDCMD compute backend-services add-backend \
 	$BACKENDSERVNAME \
 	--instance-group=$MANAGEDGROUPNAME \
 	--instance-group-zone=$ZONE \
+	--global
 
 }
 
 function createProxy(){
 $CLOUDCMD compute url-maps create $URLMAPNAME \
-	--default-service web-backend-service
+	--default-service $BACKENDSERVNAME \
+	--global
 
 
 $CLOUDCMD compute target-http-proxies create $PROXYNAME \
-	--url-map $URLMAPNAME
+	--url-map $URLMAPNAME \
+	--global
 
 }
 
 function createForwardingRule(){
 $CLOUDCMD compute forwarding-rules create $FORWARDRULENAME \
 	--address=$ADDRESSNAME \
-	--global \
 	--target-http-proxy=$PROXYNAME \
-	--ports=80
+	--ports=80 \
+	--global
 
 }
 
 
 # Run
+echo Setting project &&
+setProject &&
+echo Creating intance &&
 createInstance &&
-echo &&
+echo Creating Template &&
 createTemplate &&
-echo &&
+echo Creating managed group &&
 createManagedGroup &&
-echo  &&
+echo  Creating Firewall rules &&
 createFirewall &&
-echo  &&
+echo  Creating Address &&
 createAddress &&
-echo  &&
+echo  Creating Healthcheck &&
 createHealthCheck &&
-echo  &&
+echo  Creating backend service &&
 createBackendService &&
-echo  &&
+echo  Creating proxy &&
 createProxy &&
-echo  &&
+echo  Creating forward rule &&
 createForwardingRule &&
 echo
 
