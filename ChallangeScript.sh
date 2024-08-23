@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# https://github.com/Guilherhast/GCP-loadBalancingScripts
+
 # System
 CLOUDCMD=echo
 
@@ -12,25 +14,29 @@ PROJECT=123
 
 # Instances
 INSTANCENAME=lab-instance
-TEMPLATENAME=lab-template
-MANAGEDGROUPNAME=lab-managed-group
+TEMPLATENAME=web-server-template
+MANAGEDGROUPNAME=web-server-group
+BASEINSTNAME=web-server
 
 # Firewall
 FIREWALLRULENAME=lab-firewall-rule
-FIREWALLTAG=lab-network-tag
-FIREWALLHEALTHCHECKNAME=lab-health-check-firewall-rule
-FIREWALLHEALTHCHECKTAG=lab-allow-health-check-tag
+FIREWALLTAG=lb-health-check
+DEFAULTTAGS=http-server,https-server
+FIREWALLHEALTHCHECKNAME=$FIREWALLRULENAME
+FIREWALLHEALTHCHECKTAG=$FIREWALLTAG
+#FIREWALLHEALTHCHECKNAME=lab-health-check-firewall-rule
+#FIREWALLHEALTHCHECKTAG=lab-allow-health-check-tag
 
 # Address
 ADDRESSNAME=net-address
 
-HEALTHCHECKNAME=net-health-check
-BACKENDSERVNAME=net-back-end
+HEALTHCHECKNAME=http-basic-check
+BACKENDSERVNAME=web-server-backend
 
 # Proxy
-URLMAPNAME=lab-url-map
-PROXYNAME=lab-proxy
-FORWARDRULENAME=lab-forward-rule
+URLMAPNAME=web-server-map
+PROXYNAME=http-lb-proxy
+FORWARDRULENAME=http-content-rule
 
 # CONSTANTS
 SERVERFILE='/var/www/html/index.nginx-debian.html'
@@ -43,7 +49,7 @@ function setProject(){
 
 function createInstance(){
 	$CLOUDCMD compute instances create "$INSTANCENAME" \
-		--tags=$FIREWALLTAG \
+		--tags=$FIREWALLTAG,$DEFAULTTAGS \
 		--machine-type=e2-micro  \
 		--image-family=debian-11  \
 		--image-project=debian-cloud \
@@ -64,7 +70,7 @@ __EOF__
 $CLOUDCMD compute instance-templates create $TEMPLATENAME \
 	--network=default \
 	--subnet=default \
-	--tags=$FIREWALLHEALTHCHECKTAG \
+	--tags=$FIREWALLHEALTHCHECKTAG,$DEFAULTTAGS \
 	--machine-type=e2-medium \
 	--image-family=debian-11 \
 	--image-project=debian-cloud \
@@ -75,10 +81,17 @@ $CLOUDCMD compute instance-templates create $TEMPLATENAME \
 
 }
 
+function createHealthCheck(){
+$CLOUDCMD compute health-checks create http $HEALTHCHECKNAME
+
+}
+
 function createManagedGroup(){
 	$CLOUDCMD compute instance-groups managed  \
 		create $MANAGEDGROUPNAME \
+		--base-instance-name $BASEINSTNAME \
 		--template=$TEMPLATENAME  \
+		--health-check=$HEALTHCHECKNAME
 		--size=2
 		#--zone=$ZONE \
 
@@ -86,8 +99,8 @@ function createManagedGroup(){
 
 
 function createFirewall(){
-$CLOUDCMD compute firewall-rules create $FIREWALLRULENAME \
-	--target-tags $FIREWALLTAG --allow tcp:80
+#$CLOUDCMD compute firewall-rules create $FIREWALLRULENAME \
+#	--target-tags $FIREWALLTAG --allow tcp:80
 
 $CLOUDCMD compute firewall-rules create $FIREWALLHEALTHCHECKNAME \
 	--network=default \
@@ -105,10 +118,6 @@ $CLOUDCMD compute addresses create $ADDRESSNAME \
 	--global
 }
 
-function createHealthCheck(){
-$CLOUDCMD compute health-checks create http $HEALTHCHECKNAME
-
-}
 
 function createBackendService(){
 $CLOUDCMD compute backend-services create $BACKENDSERVNAME \
@@ -147,20 +156,21 @@ $CLOUDCMD compute forwarding-rules create $FORWARDRULENAME \
 
 
 # Run
+#
 echo Setting project &&
 setProject &&
 echo Creating intance &&
 createInstance &&
 echo Creating Template &&
 createTemplate &&
+echo  Creating Healthcheck &&
+createHealthCheck &&
 echo Creating managed group &&
 createManagedGroup &&
 echo  Creating Firewall rules &&
 createFirewall &&
 echo  Creating Address &&
 createAddress &&
-echo  Creating Healthcheck &&
-createHealthCheck &&
 echo  Creating backend service &&
 createBackendService &&
 echo  Creating proxy &&
@@ -168,5 +178,4 @@ createProxy &&
 echo  Creating forward rule &&
 createForwardingRule &&
 echo
-
 
